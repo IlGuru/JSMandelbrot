@@ -67,8 +67,12 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			this.r	= (A.r*B.r)-(A.i*B.i);
 			this.i	= (A.r*B.i)+(B.r*A.i);
 		},
-		this.pot= function(){
-			this.mol( this );
+		this.pot= function( Exp ){
+			var A = new Complex( this.r, this.i )
+			while ( Exp>1 ) {
+				this.mol(A);
+				Exp--;
+			}
 		},
 		this.show= function(){
 			return ( this.r != 0.0 ? this.r : '' ) + ( this.r != 0.0 && this.i != 0.0 ? ', ' : '' ) + ( this.i != 0.0 ? ( this.i == 1.0 ? '' : ( this.i == -1.0 ? '-' : this.i ) ) + 'i' : '');
@@ -104,35 +108,12 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			var Sx 		= 0;				//	Indice della serie
 			this.Z.r	= 0;				//	Inizializzo Z
 			this.Z.i 	= 0;
-			var A 		= new Complex( 0, 0 )
-			switch ( ZSel ) {
-				case 3:
-					//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^3 + C
-					while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
-						A.r = this.Z.r;
-						A.i = this.Z.i;
-						this.Z.pot();
-						this.Z.mol(A);
-						this.Z.sum(this.C);
-						Sx++;
-					};
-				case 4:
-					//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^4 + C
-					while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
-						this.Z.pot();
-						this.Z.pot();
-						this.Z.sum(this.C);
-						Sx++;
-					};
-				default:
-					//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^2 + C
-					while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
-						this.Z.pot();
-						this.Z.sum(this.C);
-						Sx++;
-					};
-					break;
-			}
+			//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^N + C
+			while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
+				this.Z.pot( ZSel );
+				this.Z.sum(this.C);
+				Sx++;
+			};
 			return Sx--;
 		};
 	};
