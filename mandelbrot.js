@@ -12,7 +12,30 @@ var pDef 		= ( typeof(system.args[3])	=== 'undefined' ? 32 	: parseInt(  system.
 var pCr			= ( typeof(system.args[4])	=== 'undefined' ? -0.5 	: parseFloat(system.args[4]));
 var pCi			= ( typeof(system.args[5])	=== 'undefined' ? 0.0 	: parseFloat(system.args[5]));
 var pRad 		= ( typeof(system.args[6])	=== 'undefined' ? 1.5 	: parseFloat(system.args[6]));
-var pFileName 	= ( typeof(system.args[7])	=== 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + 'x' + pDef + ').png' : system.args[7] );
+var pFileName 	= ( typeof(system.args[7])	=== 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + '@' + pDef + ').png' : system.args[7] );
+
+/*
+	pDef:
+	Aumentare la pDef è utile quando si osservano zone molto ristrette, altrimenti si vedono meno livelli.
+	pDef è il numero massimo di iterazioni x della funzione Z(x) = Z(x-1)^2 + C
+	La distribuzione di x non è lineare ma concentrata nei valori più bassi: 
+	nx
+	^
+	|  *                  '
+	|  *                  '
+	|  **                 '
+	|  **                 '
+	|  ***                '
+	|  ****               '
+	| ********            '
+	|****************     '
+	+-----------------------------------> x
+	0                     pDef
+	Quindi aumentare il numero pDef significa che poi rimappando le x nei livelli di colore L da 0 a 256 
+		si raggruppano tutti i valori più bassi L in un valore solo.
+	Poichè un L è funzione x in sostanza si vedono meno livelli di colore e diminuisce il dettaglio.
+	Quindi pDef grande per aree piccole con molti dettagli, pDef piccolo per aree grandi con pochi dettagli.
+*/
 
 page.onConsoleMessage = function(msg) {
   console.log(' ' + msg);
@@ -77,14 +100,38 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			return i;
 		},
 		this.Sx		= function( MaxSx ){	//	Indice per cui la serie diverge this.Z.mod() > 2.0
+			var ZSel	= 2;
 			var Sx 		= 0;				//	Indice della serie
 			this.Z.r	= 0;				//	Inizializzo Z
 			this.Z.i 	= 0;
-			while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
-				//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^2 + C
-				this.Z.pot();
-				this.Z.sum(this.C);
-				Sx++;
+			var A 		= new Complex( 0, 0 )
+			switch ( ZSel ) {
+				case 3:
+					//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^3 + C
+					while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
+						A.r = this.Z.r;
+						A.i = this.Z.i;
+						this.Z.pot();
+						this.Z.mol(A);
+						this.Z.sum(this.C);
+						Sx++;
+					};
+				case 4:
+					//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^4 + C
+					while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
+						this.Z.pot();
+						this.Z.pot();
+						this.Z.sum(this.C);
+						Sx++;
+					};
+				default:
+					//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^2 + C
+					while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
+						this.Z.pot();
+						this.Z.sum(this.C);
+						Sx++;
+					};
+					break;
 			}
 			return Sx--;
 		};
@@ -158,6 +205,11 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	
 	var rgb 			= [];							//	Array colore RGB
 	var dist 			= [];							//	Array conteggi del numero di ogni SmpColor 
+
+	var dstart			= Math.floor( Date.now() / 1000 );
+	var dnow			= 0;
+	var rsec			= 0;
+	var srim			= 0;
 	
 	el.width  = width;
 	el.height = height;
@@ -167,8 +219,12 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	for (y = 0; y < height; y++) {
 		
 		//	Limitazione a 20 righe di log
-		if ( y % (height/20) === 0 )
-			console.log( (y+1) + '/' + height );
+		if ( y % (height/20) === 0 ) {
+			dnow = Math.floor( Date.now() / 1000 )+1;
+			rsec = y/(dnow - dstart);
+			srim = Math.floor( (height-y)/rsec );
+			console.log( 'Rows: ' + y + '/' + height + ' Sec: ' + (dnow - dstart) + ' Row/Sec: ' + rsec + ' Sec Rim: ' + srim );
+		}
 		
 		for (x = 0; x < width; x++, i = i + 4) {
 
@@ -191,6 +247,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 				}
 			}
 			
+			//	Selezione colore
 			if ( SmpColor >= Math.floor(NumColor - DeltaSmpColor) ) {
 				rgb = [0,0,0]
 			} else {
@@ -201,6 +258,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 				}
 			}
 
+			//	Inserimento pixel
 			pixels[i]     = rgb[0];
 			pixels[i + 1] = rgb[1];
 			pixels[i + 2] = rgb[2];
