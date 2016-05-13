@@ -6,7 +6,12 @@ if (system.args.length !== 7) {
     console.log('phantomjs mandelbrot.js width height Cr Ci Rad FileName.png');
 };
 
-var pFileName = ( typeof(system.args[6])	=== 'undefined' ? 'mandelbrot.png' : system.args[6] );
+var pWidth 		= ( typeof(system.args[1])	=== 'undefined' ? 600 	: parseInt(system.args[1])	);
+var pHeight		= ( typeof(system.args[2])	=== 'undefined' ? 600 	: parseInt(system.args[2])	);
+var pCr			= ( typeof(system.args[3])	=== 'undefined' ? -0.5 	: parseFloat(system.args[3]));
+var pCi			= ( typeof(system.args[4])	=== 'undefined' ? 0.0 	: parseFloat(system.args[4]));
+var pRad 		= ( typeof(system.args[5])	=== 'undefined' ? 1.5 	: parseFloat(system.args[5]));
+var pFileName 	= ( typeof(system.args[6]) === 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + ').png' : system.args[6] );
 
 page.onConsoleMessage = function(msg) {
   console.log(' ' + msg);
@@ -207,16 +212,10 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 	document.body.style.backgroundColor = 'white';
 	document.body.style.margin = '0px';
 	
-}, 
-//	Parametri page.evaluate
-(typeof(system.args[1])	=== 'undefined' ? 600 	: parseInt(system.args[1])	),	//	pWidth,
-(typeof(system.args[2])	=== 'undefined' ? 600 	: parseInt(system.args[2])	),	//	pHeight
-(typeof(system.args[3])	=== 'undefined' ? -0.5 	: parseFloat(system.args[3])),	//	pCr, 
-(typeof(system.args[4])	=== 'undefined' ? 0.0 	: parseFloat(system.args[4])),  //	pCi, 
-(typeof(system.args[5])	=== 'undefined' ? 1.5 	: parseFloat(system.args[5])),  //	pRad 
-pFileName																		//	pFileName
+}, pWidth, pHeight, pCr, pCi, pRad, pFileName 	//	Parametri page.evaluate
 );
 
 page.render(pFileName);
 
 phantom.exit();
+
