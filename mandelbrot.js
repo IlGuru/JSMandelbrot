@@ -3,22 +3,23 @@ var page = require('webpage').create();
 var system = require('system');
 
 if (system.args.length !== 7) {
-    console.log('phantomjs mandelbrot.js width height Cr Ci Rad FileName.png');
+    console.log('phantomjs mandelbrot.js width height Quality Cr Ci Rad FileName.png');
 };
 
-var pWidth 		= ( typeof(system.args[1])	=== 'undefined' ? 600 	: parseInt(system.args[1])	);
-var pHeight		= ( typeof(system.args[2])	=== 'undefined' ? 600 	: parseInt(system.args[2])	);
-var pCr			= ( typeof(system.args[3])	=== 'undefined' ? -0.5 	: parseFloat(system.args[3]));
-var pCi			= ( typeof(system.args[4])	=== 'undefined' ? 0.0 	: parseFloat(system.args[4]));
-var pRad 		= ( typeof(system.args[5])	=== 'undefined' ? 1.5 	: parseFloat(system.args[5]));
-var pFileName 	= ( typeof(system.args[6]) === 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + ').png' : system.args[6] );
+var pWidth 		= ( typeof(system.args[1])	=== 'undefined' ? 600 	: parseInt(  system.args[1]));
+var pHeight		= ( typeof(system.args[2])	=== 'undefined' ? 600 	: parseInt(  system.args[2]));
+var pDef 		= ( typeof(system.args[3])	=== 'undefined' ? 32 	: parseInt(  system.args[3]));
+var pCr			= ( typeof(system.args[4])	=== 'undefined' ? -0.5 	: parseFloat(system.args[4]));
+var pCi			= ( typeof(system.args[5])	=== 'undefined' ? 0.0 	: parseFloat(system.args[5]));
+var pRad 		= ( typeof(system.args[6])	=== 'undefined' ? 1.5 	: parseFloat(system.args[6]));
+var pFileName 	= ( typeof(system.args[7])	=== 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + 'x' + pDef + ').png' : system.args[7] );
 
 page.onConsoleMessage = function(msg) {
   console.log(' ' + msg);
 };
 page.viewportSize = { width: system.args[1], height : system.args[2] };
 page.content = '<html><body><canvas id="surface"></canvas></body></html>';
-page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
+page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	var el 		= document.getElementById('surface'),
 		context = el.getContext('2d'),
 		width 	= window.innerWidth,
@@ -138,18 +139,25 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 
 	console.log( 'mandelbrot.js' );
 	console.log( '	Image size: ' + pWidth + 'x' + pHeight );
+	console.log( '	Quality   : ' + pDef );
 	console.log( '	Center    : ' + pCr + ', ' + pCi + 'i' );
 	console.log( '	Radius    : ' + pRad );
 	console.log( '	OutFile   : ' + pFileName );
 	
 	var MB= new MBSet( pCr, pCi, pRad, width, height );
 
-	var Debug	= false;
-	var Sx 		= 0;
-	var SxMin	= 2;
-	var SxMax	= 34;
-	var rgb 	= [];
-	var dist 	= [];
+	var Debug			= false;
+	
+	var Sx 				= 0;							//	Numero di iterazioni per cui la serie rimane limitata entro Z.mod < 2.0
+	var SxMin			= 2;							//		Valore minimo  per mappare Sx da 0 a NumColor. Sx<SxMin => 0
+	var SxMax			= pDef;							//		Valore massimo per mappare Sx da 0 a NumColor. Sx<SxMax => NumColor
+	
+	var NumColor		= 256;							//	Massimo 256 colori per questo tipo di immagine
+	var SmpColor		= 0;							//	Campionatura colore (0 - NumColor-1)
+	var DeltaSmpColor	= (NumColor/(SxMax-SxMin))/2;	//	Delta tra un livello di colore ed il successivo
+	
+	var rgb 			= [];							//	Array colore RGB
+	var dist 			= [];							//	Array conteggi del numero di ogni SmpColor 
 	
 	el.width  = width;
 	el.height = height;
@@ -158,6 +166,7 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 
 	for (y = 0; y < height; y++) {
 		
+		//	Limitazione a 20 righe di log
 		if ( y % (height/20) === 0 )
 			console.log( (y+1) + '/' + height );
 		
@@ -171,24 +180,24 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 			MB.C.i = MB.IAtt();
 
 			Sx = MB.Sx( SxMax );
-			Sx = mapSx( SxMin, SxMax, Sx )
+			SmpColor = mapSx( SxMin, SxMax, Sx )
 
 			if ( Debug ) {
-				//	Aggiungo un hit a questo indice della serie
-				if ( typeof( dist[ Sx ] ) === "undefined" ) {
-					dist[ Sx ] = 1;
+				//	Aggiungo un hit a questo SmpColor
+				if ( typeof( dist[ SmpColor ] ) === "undefined" ) {
+					dist[ SmpColor ] = 1;
 				} else {
-					dist[ Sx ]++;
+					dist[ SmpColor ]++;
 				}
 			}
 			
-			if ( Sx > 255 - 128/(SxMax-SxMin) ) {
+			if ( SmpColor >= Math.floor(NumColor - DeltaSmpColor) ) {
 				rgb = [0,0,0]
 			} else {
-				if ( Sx < 0 + 128/(SxMax-SxMin) ) {
+				if ( SmpColor <= Math.floor(0 + DeltaSmpColor) ) {
 					rgb = [255,255,255]
 				} else {
-					rgb = hslToRgb( (Sx/255.0), 1.0, 0.5 ); 
+					rgb = hslToRgb( (SmpColor/255.0), 1.0, 0.5 ); 
 				}
 			}
 
@@ -202,9 +211,9 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 	}
 
 	if ( Debug ) {
-		//	Visualizzazione array con il numero di hit per ogni indice della serie in cui il modulo ha superato il valore 2.0
-		for (Sx = 0; Sx < 256; Sx++) {
-			console.log( Sx + ';' + ( typeof( dist[ Sx ] ) !== "undefined" ? dist[ Sx ] + ';' + 100*dist[ Sx ]/(width*height) + '%' : '0;0%' ) );
+		//	Visualizzazione array con il numero di hit per ogni SmpColor
+		for (SmpColor = 0; SmpColor < NumColor; SmpColor++) {
+			console.log( SmpColor + ';' + ( typeof( dist[ SmpColor ] ) !== "undefined" ? dist[ SmpColor ] + ';' + 100*dist[ SmpColor ]/(width*height) + '%' : '0;0%' ) );
 		}
 	}
 	
@@ -212,7 +221,7 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 	document.body.style.backgroundColor = 'white';
 	document.body.style.margin = '0px';
 	
-}, pWidth, pHeight, pCr, pCi, pRad, pFileName 	//	Parametri page.evaluate
+}, pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName 	//	Parametri page.evaluate
 );
 
 page.render(pFileName);
