@@ -1,20 +1,27 @@
 "use strict";
 var page = require('webpage').create();
+var system = require('system');
+
+if (system.args.length !== 7) {
+    console.log('phantomjs mandelbrot.js width height Cr Ci Rad FileName.png');
+};
+
+var pFileName = ( typeof(system.args[6])	=== 'undefined' ? 'mandelbrot.png' : system.args[6] );
+
 page.onConsoleMessage = function(msg) {
   console.log(' ' + msg);
 };
-page.viewportSize = { width: 600, height : 600 };
+page.viewportSize = { width: system.args[1], height : system.args[2] };
 page.content = '<html><body><canvas id="surface"></canvas></body></html>';
-page.evaluate(function() {
-    var el = document.getElementById('surface'),
-        context = el.getContext('2d'),
-        width = window.innerWidth,
-        height = window.innerHeight,
-        imageData,
-        pixels,
-        ton, sat, lum,
-        i = 0, x, y;
-
+page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
+	var el 		= document.getElementById('surface'),
+		context = el.getContext('2d'),
+		width 	= window.innerWidth,
+		height 	= window.innerHeight,
+		imageData,
+		pixels,
+		i = 0, x, y;
+		
 	Complex = function( R, I ){
 		this.r	= R,
 		this.i	= I,
@@ -122,8 +129,14 @@ page.evaluate(function() {
 		
 		return Math.floor( 255 * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
 	};
+
+	console.log( 'mandelbrot.js' );
+	console.log( '	Image size: ' + pWidth + 'x' + pHeight );
+	console.log( '	Center    : ' + pCr + ', ' + pCi + 'i' );
+	console.log( '	Radius    : ' + pRad );
+	console.log( '	OutFile   : ' + pFileName );
 	
-	var MB= new MBSet( 0.4, -0.21,  0.02, width, height );
+	var MB= new MBSet( pCr, pCi, pRad, width, height );
 
 	var Debug	= false;
 	var Sx 		= 0;
@@ -132,15 +145,15 @@ page.evaluate(function() {
 	var rgb 	= [];
 	var dist 	= [];
 	
-    el.width  = width;
-    el.height = height;
-    imageData = context.createImageData(width, height);
-    pixels = imageData.data;
+	el.width  = width;
+	el.height = height;
+	imageData = context.createImageData(width, height);
+	pixels = imageData.data;
 
-    for (y = 0; y < height; y++) {
+	for (y = 0; y < height; y++) {
 		
 		console.log( (y+1) + '/' + height );
-        
+		
 		for (x = 0; x < width; x++, i = i + 4) {
 
 			//	Imposto il punto (x,y) nel grafico
@@ -177,8 +190,8 @@ page.evaluate(function() {
 			pixels[i + 2] = rgb[2];
 			pixels[i + 3] = 255;
 
-        }
-    
+		}
+	
 	}
 
 	if ( Debug ) {
@@ -188,11 +201,20 @@ page.evaluate(function() {
 		}
 	}
 	
-    context.putImageData(imageData, 0, 0);
-    document.body.style.backgroundColor = 'white';
-    document.body.style.margin = '0px';
-});
+	context.putImageData(imageData, 0, 0);
+	document.body.style.backgroundColor = 'white';
+	document.body.style.margin = '0px';
+	
+}, 
+//	Parametri page.evaluate
+(typeof(system.args[1])	=== 'undefined' ? 600 	: parseInt(system.args[1])	),	//	pWidth,
+(typeof(system.args[2])	=== 'undefined' ? 600 	: parseInt(system.args[2])	),	//	pHeight
+(typeof(system.args[3])	=== 'undefined' ? -0.5 	: parseFloat(system.args[3])),	//	pCr, 
+(typeof(system.args[4])	=== 'undefined' ? 0.0 	: parseFloat(system.args[4])),  //	pCi, 
+(typeof(system.args[5])	=== 'undefined' ? 1.5 	: parseFloat(system.args[5])),  //	pRad 
+pFileName																		//	pFileName
+);
 
-page.render('mandelbrot.png');
+page.render(pFileName);
 
 phantom.exit();
