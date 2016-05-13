@@ -66,7 +66,8 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 			return r;
 		},
 		this.IAtt	= function(){			//	Parte immaginaria del numero nel piano di Gauss corrispondente al punto y nel grafico
-			var i = this.IMin + ( this.Py / this.Height ) * ( this.IMax - this.IMin );
+			//	(this.Height - this.Py) invece di this.Py perchè le coordinate immagine crescono dall'alto verso il basso
+			var i = this.IMin + ( (this.Height - this.Py) / this.Height ) * ( this.IMax - this.IMin );
 			return i;
 		},
 		this.Sx		= function( MaxSx ){	//	Indice per cui la serie diverge this.Z.mod() > 2.0
@@ -152,7 +153,8 @@ page.evaluate(function( pWidth, pHeight, pCr, pCi, pRad, pFileName ) {
 
 	for (y = 0; y < height; y++) {
 		
-		console.log( (y+1) + '/' + height );
+		if ( y % (height/20) === 0 )
+			console.log( (y+1) + '/' + height );
 		
 		for (x = 0; x < width; x++, i = i + 4) {
 
