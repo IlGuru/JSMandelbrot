@@ -103,14 +103,13 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			var i = this.IMin + ( (this.Height - this.Py) / this.Height ) * ( this.IMax - this.IMin );
 			return i;
 		},
-		this.Sx		= function( MaxSx ){	//	Indice per cui la serie diverge this.Z.mod() > 2.0
-			var ZSel	= 2;
+		this.Sx		= function( N, MaxSx ){	//	Valore dell' indice della serie Z( Sx ) = Z( Sx-1 )^N + C per cui | Z(Sx) | > 2.0
 			var Sx 		= 0;				//	Indice della serie
 			this.Z.r	= 0;				//	Inizializzo Z
 			this.Z.i 	= 0;
 			//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^N + C
 			while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
-				this.Z.pot( ZSel );
+				this.Z.pot( N );
 				this.Z.sum(this.C);
 				Sx++;
 			};
@@ -129,7 +128,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	 * @param   {number}  l       The lightness
 	 * @return  {Array}           The RGB representation
 	 */
-	function hslToRgb(h, s, l){
+	function hslToRgb(h, s, l, a){
 		var r, g, b;
 
 		//console.log( '     H:' + h + ' S:' + s + ' L:' + l );
@@ -153,7 +152,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			b = hue2rgb(p, q, h - 1/3);
 		}
 
-		return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+		return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), Math.round(a * 255)];
 	};
 
 	function mapSx( MinSx, MaxSx, Sx ) {
@@ -184,7 +183,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	var SmpColor		= 0;							//	Campionatura colore (0 - NumColor-1)
 	var DeltaSmpColor	= (NumColor/(SxMax-SxMin))/2;	//	Delta tra un livello di colore ed il successivo
 	
-	var rgb 			= [];							//	Array colore RGB
+	var rgba			= [];							//	Array colore RGB
 	var dist 			= [];							//	Array conteggi del numero di ogni SmpColor 
 
 	var dstart			= Math.floor( Date.now() / 1000 );
@@ -207,7 +206,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			console.log( 'Rows: ' + y + '/' + height + ' Sec: ' + (dnow - dstart) + ' Row/Sec: ' + rsec + ' Sec Rim: ' + srim );
 		}
 		
-		for (x = 0; x < width; x++, i = i + 4) {
+		for (x = 0; x < width; x++) {
 
 			//	Imposto il punto (x,y) nel grafico
 			MB.SetP( x, y );
@@ -216,7 +215,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			MB.C.r = MB.RAtt();
 			MB.C.i = MB.IAtt();
 
-			Sx = MB.Sx( SxMax );
+			Sx = MB.Sx( 2, SxMax );
 			SmpColor = mapSx( SxMin, SxMax, Sx )
 
 			if ( Debug ) {
@@ -230,20 +229,20 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			
 			//	Selezione colore
 			if ( SmpColor >= Math.floor(NumColor - DeltaSmpColor) ) {
-				rgb = [0,0,0]
+				rgb = [0,0,0, 255]
 			} else {
 				if ( SmpColor <= Math.floor(0 + DeltaSmpColor) ) {
-					rgb = [255,255,255]
+					rgb = [255,255,255,255]
 				} else {
-					rgb = hslToRgb( (SmpColor/255.0), 1.0, 0.5 ); 
+					rgb = hslToRgb( (SmpColor/255.0), 1.0, 0.5, 1.0 ); 
 				}
 			}
 
 			//	Inserimento pixel
-			pixels[i]     = rgb[0];
-			pixels[i + 1] = rgb[1];
-			pixels[i + 2] = rgb[2];
-			pixels[i + 3] = 255;
+			pixels[i++] = rgb[0];
+			pixels[i++] = rgb[1];
+			pixels[i++] = rgb[2];
+			pixels[i++] = rgb[3];
 
 		}
 	
