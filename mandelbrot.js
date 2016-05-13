@@ -63,8 +63,8 @@ page.evaluate(function() {
 			return i;
 		},
 		this.Sx		= function( MaxSx ){	//	Indice per cui la serie diverge this.Z.mod() > 2.0
-			var Sx 		= 0;	//	Indice della serie
-			this.Z.r	= 0;	//	Inizializzo Z
+			var Sx 		= 0;				//	Indice della serie
+			this.Z.r	= 0;				//	Inizializzo Z
 			this.Z.i 	= 0;
 			while( Sx < MaxSx && this.Z.mod() < 2.0 ) {
 				//	Calcolo la serie Z( Sx+1 ) = Z( Sx )^2 + C
@@ -123,11 +123,14 @@ page.evaluate(function() {
 		return Math.floor( 255 * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
 	};
 	
-	var MB= new MBSet( -0.60, 0.0, 1.2, width, height );
+	var MB= new MBSet( 0.4, -0.21,  0.02, width, height );
 
-	var Sx = 0;
-	var rgb = [];
-	var dist = [];
+	var Debug	= false;
+	var Sx 		= 0;
+	var SxMin	= 2;
+	var SxMax	= 34;
+	var rgb 	= [];
+	var dist 	= [];
 	
     el.width  = width;
     el.height = height;
@@ -136,7 +139,7 @@ page.evaluate(function() {
 
     for (y = 0; y < height; y++) {
 		
-		console.log( y + '/' + height );
+		console.log( (y+1) + '/' + height );
         
 		for (x = 0; x < width; x++, i = i + 4) {
 
@@ -147,22 +150,22 @@ page.evaluate(function() {
 			MB.C.r = MB.RAtt();
 			MB.C.i = MB.IAtt();
 
-			Sx = MB.Sx( 34 );
-			Sx = mapSx( 2, 34, Sx )
+			Sx = MB.Sx( SxMax );
+			Sx = mapSx( SxMin, SxMax, Sx )
 
-			/*
-			//	Aggiungo un hit a questo indice della serie
-			if ( typeof( dist[ Sx ] ) === "undefined" ) {
-				dist[ Sx ] = 1;
-			} else {
-				dist[ Sx ]++;
+			if ( Debug ) {
+				//	Aggiungo un hit a questo indice della serie
+				if ( typeof( dist[ Sx ] ) === "undefined" ) {
+					dist[ Sx ] = 1;
+				} else {
+					dist[ Sx ]++;
+				}
 			}
-			*/
 			
-			if ( Sx > 247 ) {
+			if ( Sx > 255 - 128/(SxMax-SxMin) ) {
 				rgb = [0,0,0]
 			} else {
-				if ( Sx < 7 ) {
+				if ( Sx < 0 + 128/(SxMax-SxMin) ) {
 					rgb = [255,255,255]
 				} else {
 					rgb = hslToRgb( (Sx/255.0), 1.0, 0.5 ); 
@@ -178,12 +181,12 @@ page.evaluate(function() {
     
 	}
 
-	/*
-	//	Visualizzazione array con il numero di hit per ogni indice della serie in cui il modulo ha superato il valore 2.0
-	for (Sx = 0; Sx < 256; Sx++) {
-		console.log( Sx + ';' + ( typeof( dist[ Sx ] ) !== "undefined" ? dist[ Sx ] + ';' + 100*dist[ Sx ]/(width*height) + '%' : '0;0%' ) );
-    }
-	*/
+	if ( Debug ) {
+		//	Visualizzazione array con il numero di hit per ogni indice della serie in cui il modulo ha superato il valore 2.0
+		for (Sx = 0; Sx < 256; Sx++) {
+			console.log( Sx + ';' + ( typeof( dist[ Sx ] ) !== "undefined" ? dist[ Sx ] + ';' + 100*dist[ Sx ]/(width*height) + '%' : '0;0%' ) );
+		}
+	}
 	
     context.putImageData(imageData, 0, 0);
     document.body.style.backgroundColor = 'white';
