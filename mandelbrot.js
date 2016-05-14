@@ -51,6 +51,57 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 		pixels,
 		i = 0, x, y;
 		
+	/**
+	 * Converts an HSL color value to RGB. Conversion formula
+	 * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
+	 * Assumes h, s, and l are contained in the set [0, 1] and
+	 * returns r, g, and b in the set [0, 255].
+	 *
+	 * @param   {number}  h       The hue
+	 * @param   {number}  s       The saturation
+	 * @param   {number}  l       The lightness
+	 * @return  {Array}           The RGB representation
+	 */
+	function hslToRgb(h, s, l, a){
+		var r, g, b;
+
+		//console.log( '     H:' + h + ' S:' + s + ' L:' + l );
+
+		if(s == 0){
+			r = g = b = l; // achromatic
+		} else {
+			var hue2rgb = function hue2rgb(p, q, t){
+				if(t < 0) t += 1;
+				if(t > 1) t -= 1;
+				if(t < 1/6) return p + (q - p) * 6 * t;
+				if(t < 1/2) return q;
+				if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+				return p;
+			}
+
+			var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+			var p = 2 * l - q;
+			r = hue2rgb(p, q, h + 1/3);
+			g = hue2rgb(p, q, h);
+			b = hue2rgb(p, q, h - 1/3);
+		}
+
+		return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), Math.round(a * 255)];
+	};
+
+	function mapSx( MinSx, MaxSx, Sx ) {
+		if ( Sx > MaxSx )
+			return 255;
+		if ( Sx < MinSx )
+			return 0;
+		
+		return Math.floor( 255 * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
+	};
+
+	function fomatnum( n, p, d ) {
+		return String("        " + n.toFixed(d)).slice(-p);
+	};
+		
 	Complex = function( R, I ){
 		this.r	= R,
 		this.i	= I,
@@ -116,54 +167,29 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			return Sx--;
 		};
 	};
-	
-	/**
-	 * Converts an HSL color value to RGB. Conversion formula
-	 * adapted from http://en.wikipedia.org/wiki/HSL_color_space.
-	 * Assumes h, s, and l are contained in the set [0, 1] and
-	 * returns r, g, and b in the set [0, 255].
-	 *
-	 * @param   {number}  h       The hue
-	 * @param   {number}  s       The saturation
-	 * @param   {number}  l       The lightness
-	 * @return  {Array}           The RGB representation
-	 */
-	function hslToRgb(h, s, l, a){
-		var r, g, b;
 
-		//console.log( '     H:' + h + ' S:' + s + ' L:' + l );
-
-		if(s == 0){
-			r = g = b = l; // achromatic
-		} else {
-			var hue2rgb = function hue2rgb(p, q, t){
-				if(t < 0) t += 1;
-				if(t > 1) t -= 1;
-				if(t < 1/6) return p + (q - p) * 6 * t;
-				if(t < 1/2) return q;
-				if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-				return p;
-			}
-
-			var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-			var p = 2 * l - q;
-			r = hue2rgb(p, q, h + 1/3);
-			g = hue2rgb(p, q, h);
-			b = hue2rgb(p, q, h - 1/3);
-		}
-
-		return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), Math.round(a * 255)];
+	LOG = function( PixMax, Now ){
+		this.iPix		= 0,
+		this.iPixMax	= PixMax,
+		this.dstart		= Math.floor( Now / 1000 ),
+		this.iMaxLog	= 5*Math.pow( 10, Math.floor(Math.log(PixMax) / Math.LN10)-4),
+		this.iPixMod	= Math.floor(this.iPixMax/this.iMaxLog);
+		this.dnow		= 0,
+		this.uptime		= 0,
+		this.psec		= 0,
+		this.srim		= 0,
+		this.doLog		= function(){
+			this.iPix++;
+			if ( (this.iPix % this.iPixMod) === 0 ) {
+				this.dnow	= Math.floor( Date.now() / 1000 );
+				this.uptime	= this.dnow - this.dstart;
+				this.psec	= this.iPix/this.uptime;
+				this.srim	= Math.floor( (this.iPixMax-this.iPix)/this.psec );
+				console.log( 'Pix: ' + fomatnum(this.iPix, 8, 0) + '/' + this.iPixMax + ' - Sec: ' + fomatnum(this.uptime, 8, 0) + ' - Pix/Sec: ' + fomatnum(this.psec, 12, 3) + ' - TTE: ' + fomatnum(this.srim, 8, 0) );
+			};
+		};
 	};
-
-	function mapSx( MinSx, MaxSx, Sx ) {
-		if ( Sx > MaxSx )
-			return 255;
-		if ( Sx < MinSx )
-			return 0;
 		
-		return Math.floor( 255 * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
-	};
-
 	console.log( 'mandelbrot.js' );
 	console.log( '	Image size: ' + pWidth + 'x' + pHeight );
 	console.log( '	Quality   : ' + pDef );
@@ -186,28 +212,20 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	var rgba			= [];							//	Array colore RGB
 	var dist 			= [];							//	Array conteggi del numero di ogni SmpColor 
 
-	var dstart			= Math.floor( Date.now() / 1000 );
-	var dnow			= 0;
-	var rsec			= 0;
-	var srim			= 0;
-	
 	el.width  = width;
 	el.height = height;
 	imageData = context.createImageData(width, height);
 	pixels = imageData.data;
 
-	for (y = 0; y < height; y++) {
-		
-		//	Limitazione a 20 righe di log
-		if ( y % (height/20) === 0 ) {
-			dnow = Math.floor( Date.now() / 1000 )+1;
-			rsec = y/(dnow - dstart);
-			srim = Math.floor( (height-y)/rsec );
-			console.log( 'Rows: ' + y + '/' + height + ' Sec: ' + (dnow - dstart) + ' Row/Sec: ' + rsec + ' Sec Rim: ' + srim );
-		}
+	var L = new LOG( height*width, Date.now() );
+	console.log( 'Max log: ' + L.iMaxLog );
+	for ( y = 0; y < height; y++) {
 		
 		for (x = 0; x < width; x++) {
 
+			//	Log
+			L.doLog();
+			
 			//	Imposto il punto (x,y) nel grafico
 			MB.SetP( x, y );
 			
