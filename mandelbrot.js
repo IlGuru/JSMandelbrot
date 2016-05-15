@@ -98,10 +98,10 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 		return Math.floor( 255 * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
 	};
 
-	function fomatnum( n, p, d ) {
+	FormatNum = function( n, p, d ) {
 		return String("        " + n.toFixed(d)).slice(-p);
 	};
-		
+	
 	Complex = function( R, I ){
 		this.r	= R,
 		this.i	= I,
@@ -168,12 +168,12 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 		};
 	};
 
-	LOG = function( PixMax, Now ){
+	LOG = function( PixMax, dStart ){
 		this.iPix		= 0,
 		this.iPixMax	= PixMax,
-		this.dstart		= Math.floor( Now / 1000 ),
+		this.dstart		= Math.floor( dStart / 1000 ),
 		this.iMaxLog	= 5*Math.pow( 10, Math.floor(Math.log(PixMax) / Math.LN10)-4),
-		this.iPixMod	= Math.floor(this.iPixMax/this.iMaxLog);
+		this.iPixMod	= Math.floor(PixMax/this.iMaxLog);
 		this.dnow		= 0,
 		this.uptime		= 0,
 		this.psec		= 0,
@@ -185,7 +185,11 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 				this.uptime	= this.dnow - this.dstart;
 				this.psec	= this.iPix/this.uptime;
 				this.srim	= Math.floor( (this.iPixMax-this.iPix)/this.psec );
-				console.log( 'Pix: ' + fomatnum(this.iPix, 8, 0) + '/' + this.iPixMax + ' - Sec: ' + fomatnum(this.uptime, 8, 0) + ' - Pix/Sec: ' + fomatnum(this.psec, 12, 3) + ' - TTE: ' + fomatnum(this.srim, 8, 0) );
+				var sec 	= this.srim % 60;
+				var min		= ((this.srim - sec) / 60 ) % 60
+				var hh		= ((this.srim - sec - min*60) / 3600 ) % 24;
+				var dd		= ((this.srim - sec - min*60 - hh*3600) / 86400 );
+				console.log( 'Pix: ' + FormatNum(this.iPix, 8, 0) + '/' + this.iPixMax + ' - Sec: ' + FormatNum(this.uptime, 8, 0) + ' - Pix/Sec: ' + FormatNum(this.psec, 12, 3) + ' - TTE: ' + ( dd != 0 ? FormatNum( dd, 2, 0 ) + 'D ' : '') + ( hh != 0 ? FormatNum( hh, 2, 0 ) + ':' : '') + FormatNum( min, 2, 0 ) + ':' + FormatNum( sec, 2, 0 ) );
 			};
 		};
 	};
@@ -210,7 +214,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	var DeltaSmpColor	= (NumColor/(SxMax-SxMin))/2;	//	Delta tra un livello di colore ed il successivo
 	
 	var rgba			= [];							//	Array colore RGB
-	var dist 			= [];							//	Array conteggi del numero di ogni SmpColor 
+	var Palette 			= [];							//	Array conteggi del numero di ogni SmpColor 
 
 	el.width  = width;
 	el.height = height;
@@ -236,31 +240,36 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			Sx = MB.Sx( 2, SxMax );
 			SmpColor = mapSx( SxMin, SxMax, Sx )
 
-			if ( Debug ) {
-				//	Aggiungo un hit a questo SmpColor
-				if ( typeof( dist[ SmpColor ] ) === "undefined" ) {
-					dist[ SmpColor ] = 1;
+			//	Selezione colore dalla palette
+			if ( typeof( Palette[ SmpColor ] ) === "undefined" ) {
+				//	Selezione colore
+				if ( SmpColor >= Math.floor(NumColor - DeltaSmpColor) ) {
+					rgb = [0,0,0, 255]
 				} else {
-					dist[ SmpColor ]++;
-				}
-			}
-			
-			//	Selezione colore
-			if ( SmpColor >= Math.floor(NumColor - DeltaSmpColor) ) {
-				rgb = [0,0,0, 255]
+					if ( SmpColor <= Math.floor(0 + DeltaSmpColor) ) {
+						rgb = [255,255,255,255]
+					} else {
+						rgb = hslToRgb( (SmpColor/255.0), 1.0, 0.5, 1.0 ); 
+					}
+				};
+				//	Aggiungo questo SmpColor nella pelette
+				Palette[ SmpColor ] = {
+					Hit: 1,
+					R: rgb[0],
+					G: rgb[1],
+					B: rgb[2],
+					A: rgb[3]
+				};
 			} else {
-				if ( SmpColor <= Math.floor(0 + DeltaSmpColor) ) {
-					rgb = [255,255,255,255]
-				} else {
-					rgb = hslToRgb( (SmpColor/255.0), 1.0, 0.5, 1.0 ); 
-				}
-			}
-
+				//	Aggiungo un hit
+				Palette[ SmpColor ].Hit++;
+			};
+			
 			//	Inserimento pixel
-			pixels[i++] = rgb[0];
-			pixels[i++] = rgb[1];
-			pixels[i++] = rgb[2];
-			pixels[i++] = rgb[3];
+			pixels[i++] = Palette[ SmpColor ].R;
+			pixels[i++] = Palette[ SmpColor ].G;
+			pixels[i++] = Palette[ SmpColor ].B;
+			pixels[i++] = Palette[ SmpColor ].A;
 
 		}
 	
@@ -269,7 +278,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	if ( Debug ) {
 		//	Visualizzazione array con il numero di hit per ogni SmpColor
 		for (SmpColor = 0; SmpColor < NumColor; SmpColor++) {
-			console.log( SmpColor + ';' + ( typeof( dist[ SmpColor ] ) !== "undefined" ? dist[ SmpColor ] + ';' + 100*dist[ SmpColor ]/(width*height) + '%' : '0;0%' ) );
+			console.log( SmpColor + ';' + ( typeof( Palette[ SmpColor ] ) !== "undefined" ? Palette[ SmpColor ].Hit + ';' + 100*Palette[ SmpColor ].Hit/(width*height) + '%' : '0;0%' ) );
 		}
 	}
 	
