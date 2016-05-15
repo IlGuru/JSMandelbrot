@@ -2,22 +2,24 @@
 var page = require('webpage').create();
 var system = require('system');
 
-if (system.args.length !== 7) {
-    console.log('phantomjs mandelbrot.js width height Quality Cr Ci Rad FileName.png');
+if (system.args.length !== 8) {
+    console.log('phantomjs mandelbrot.js Cr Ci Rad Width Height NumColor MinIteration MaxIteration FileName.png');
 };
 
-var pWidth 		= ( typeof(system.args[1])	=== 'undefined' ? 600 	: parseInt(  system.args[1]));
-var pHeight		= ( typeof(system.args[2])	=== 'undefined' ? 600 	: parseInt(  system.args[2]));
-var pDef 		= ( typeof(system.args[3])	=== 'undefined' ? 32 	: parseInt(  system.args[3]));
-var pCr			= ( typeof(system.args[4])	=== 'undefined' ? -0.5 	: parseFloat(system.args[4]));
-var pCi			= ( typeof(system.args[5])	=== 'undefined' ? 0.0 	: parseFloat(system.args[5]));
-var pRad 		= ( typeof(system.args[6])	=== 'undefined' ? 1.5 	: parseFloat(system.args[6]));
-var pFileName 	= ( typeof(system.args[7])	=== 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + '@' + pDef + ').png' : system.args[7] );
+var pCr				= ( typeof(system.args[1])	=== 'undefined' ? -0.5 	: parseFloat(system.args[1]));	//	Centro del grafico, valore reale
+var pCi				= ( typeof(system.args[2])	=== 'undefined' ? 0.0 	: parseFloat(system.args[2]));	//	Centro del grafico, valore immaginario
+var pRad 			= ( typeof(system.args[3])	=== 'undefined' ? 1.5 	: parseFloat(system.args[3]));	//	Raggio del grafico
+var pWidth 			= ( typeof(system.args[4])	=== 'undefined' ? 600 	: parseInt(  system.args[4]));	//	Dimensioni x immagine
+var pHeight			= ( typeof(system.args[5])	=== 'undefined' ? 600 	: parseInt(  system.args[5]));	//	Dimensioni y immagine
+var pNumColor		= ( typeof(system.args[6])	=== 'undefined' ? 256 	: parseInt(  system.args[6]));	//	Numero di colori
+var pMinIteration	= ( typeof(system.args[7])	=== 'undefined' ? 1 	: parseInt(  system.args[7]));	//	Numero di iterazioni minimo da disegnare
+var pMaxIteration 	= ( typeof(system.args[8])	=== 'undefined' ? 32 	: parseInt(  system.args[8]));	//	Numero di iterazioni massimo da disegnare
+var pFileName 		= ( typeof(system.args[9])	=== 'undefined' ? 'mandelbrot' + '_(' + pCr + '_' + pCi + '_' + pRad + ')_(' + pWidth + 'x' + pHeight + '@' + pNumColor + ')' + '(' + pMinIteration + ',' + pMaxIteration + ').png' : system.args[9] );
 
 /*
-	pDef:
-	Aumentare la pDef è utile quando si osservano zone molto ristrette, altrimenti si vedono meno livelli.
-	pDef è il numero massimo di iterazioni x della funzione Z(x) = Z(x-1)^2 + C
+	pMaxIteration:
+	Aumentare la pMaxIteration è utile quando si osservano zone molto ristrette, altrimenti si vedono meno livelli.
+	pMaxIteration è il numero massimo di iterazioni x della funzione Z(x) = Z(x-1)^2 + C
 	La distribuzione di x non è lineare ma concentrata nei valori più bassi: 
 	nx
 	^
@@ -30,19 +32,19 @@ var pFileName 	= ( typeof(system.args[7])	=== 'undefined' ? 'mandelbrot' + '_(' 
 	| ********            '
 	|****************     '
 	+-----------------------------------> x
-	0                     pDef
-	Quindi aumentare il numero pDef significa che poi rimappando le x nei livelli di colore L da 0 a 256 
+	0                     pMaxIteration
+	Quindi aumentare il numero pMaxIteration significa che poi rimappando le x nei livelli di colore L da 0 a 256 
 		si raggruppano tutti i valori più bassi L in un valore solo.
 	Poichè un L è funzione x in sostanza si vedono meno livelli di colore e diminuisce il dettaglio.
-	Quindi pDef grande per aree piccole con molti dettagli, pDef piccolo per aree grandi con pochi dettagli.
+	Quindi pMaxIteration grande per aree piccole con molti dettagli, pMaxIteration piccolo per aree grandi con pochi dettagli.
 */
 
 page.onConsoleMessage = function(msg) {
   console.log(' ' + msg);
 };
-page.viewportSize = { width: system.args[1], height : system.args[2] };
+page.viewportSize = { width: pWidth, height : pHeight };
 page.content = '<html><body><canvas id="surface"></canvas></body></html>';
-page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
+page.evaluate(function( pCr, pCi, pRad, pWidth, pHeight, pNumColor, pMinIteration, pMaxIteration, pFileName ) {
 	var el 		= document.getElementById('surface'),
 		context = el.getContext('2d'),
 		width 	= window.innerWidth,
@@ -89,13 +91,15 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 		return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255), Math.round(a * 255)];
 	};
 
-	function mapSx( MinSx, MaxSx, Sx ) {
-		if ( Sx > MaxSx )
-			return 255;
-		if ( Sx < MinSx )
+	function mapSx( MinSx, MaxSx, Sx, MaxColor ) {
+		//Ritorna un valore tra 0 e MaxColor per Sx tra MinSx e MaxSx
+		//	(MinSx<->MaxSx) -> (0<->MaxColor)
+		if ( Sx >= MaxSx )
+			return MaxColor;
+		if ( Sx <= MinSx )
 			return 0;
 		
-		return Math.floor( 255 * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
+		return Math.floor( MaxColor * ( ( Sx - MinSx ) / ( MaxSx - MinSx ) ) );
 	};
 
 	FormatNum = function( n, p, d ) {
@@ -196,7 +200,8 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 		
 	console.log( 'mandelbrot.js' );
 	console.log( '	Image size: ' + pWidth + 'x' + pHeight );
-	console.log( '	Quality   : ' + pDef );
+	console.log( '	Colors    : ' + pNumColor );
+	console.log( '	Iteration : ' + pMinIteration + '->' + pMaxIteration );
 	console.log( '	Center    : ' + pCr + ', ' + pCi + 'i' );
 	console.log( '	Radius    : ' + pRad );
 	console.log( '	OutFile   : ' + pFileName );
@@ -205,16 +210,13 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 
 	var Debug			= false;
 	
-	var Sx 				= 0;							//	Numero di iterazioni per cui la serie rimane limitata entro Z.mod < 2.0
-	var SxMin			= 2;							//		Valore minimo  per mappare Sx da 0 a NumColor. Sx<SxMin => 0
-	var SxMax			= pDef;							//		Valore massimo per mappare Sx da 0 a NumColor. Sx<SxMax => NumColor
+	var Sx 				= 0;											//	Numero di iterazioni per cui la serie rimane limitata entro Z.mod < 2.0
 	
-	var NumColor		= 256;							//	Massimo 256 colori per questo tipo di immagine
-	var SmpColor		= 0;							//	Campionatura colore (0 - NumColor-1)
-	var DeltaSmpColor	= (NumColor/(SxMax-SxMin))/2;	//	Delta tra un livello di colore ed il successivo
+	var SmpColor		= 0;											//	Campionatura colore (0 - pNumColor-1)
+	var DeltaSmpColor	= (pNumColor/(pMaxIteration-pMinIteration))/2;	//	Delta tra un livello di colore ed il successivo
 	
-	var rgba			= [];							//	Array colore RGB
-	var Palette 			= [];							//	Array conteggi del numero di ogni SmpColor 
+	var rgba			= [];											//	Array colore RGB
+	var Palette 		= [];											//	Array conteggi del numero di ogni SmpColor 
 
 	el.width  = width;
 	el.height = height;
@@ -237,20 +239,20 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 			MB.C.r = MB.RAtt();
 			MB.C.i = MB.IAtt();
 
-			Sx = MB.Sx( 2, SxMax );
-			SmpColor = mapSx( SxMin, SxMax, Sx )
+			Sx = MB.Sx( 2, pMaxIteration );
+			SmpColor = mapSx( pMinIteration, pMaxIteration, Sx, pNumColor );
 
 			//	Selezione colore dalla palette
 			if ( typeof( Palette[ SmpColor ] ) === "undefined" ) {
 				//	Selezione colore
-				if ( SmpColor >= Math.floor(NumColor - DeltaSmpColor) ) {
+				if ( SmpColor >= Math.floor(pNumColor - DeltaSmpColor) ) {
 					rgb = [0,0,0, 255]
 				} else {
 					if ( SmpColor <= Math.floor(0 + DeltaSmpColor) ) {
 						rgb = [255,255,255,255]
 					} else {
-						rgb = hslToRgb( (SmpColor/255.0), 1.0, 0.5, 1.0 ); 
-					}
+						rgb = hslToRgb( (SmpColor/(pNumColor-1)), 1.0, 0.5, 1.0 ); 
+					};
 				};
 				//	Aggiungo questo SmpColor nella pelette
 				Palette[ SmpColor ] = {
@@ -277,7 +279,7 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 
 	if ( Debug ) {
 		//	Visualizzazione array con il numero di hit per ogni SmpColor
-		for (SmpColor = 0; SmpColor < NumColor; SmpColor++) {
+		for (SmpColor = 0; SmpColor < pNumColor; SmpColor++) {
 			console.log( SmpColor + ';' + ( typeof( Palette[ SmpColor ] ) !== "undefined" ? Palette[ SmpColor ].Hit + ';' + 100*Palette[ SmpColor ].Hit/(width*height) + '%' : '0;0%' ) );
 		}
 	}
@@ -286,10 +288,9 @@ page.evaluate(function( pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName ) {
 	document.body.style.backgroundColor = 'white';
 	document.body.style.margin = '0px';
 	
-}, pWidth, pHeight, pDef, pCr, pCi, pRad, pFileName 	//	Parametri page.evaluate
+}, pCr, pCi, pRad, pWidth, pHeight, pNumColor, pMinIteration, pMaxIteration, pFileName 	//	Parametri page.evaluate
 );
 
 page.render(pFileName);
 
 phantom.exit();
-
